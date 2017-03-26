@@ -71,9 +71,11 @@
     (timbre/info {:uid client-id :event event})
     (-event-msg-handler ev-msg)))
 
+;; FIXME Orange
 (defmethod -event-msg-handler :cli/prev [_]
   (swap! db (fn [state] (update-in state [:index] dec))))
 
+;; FIXME blue
 (defmethod -event-msg-handler :cli/next [_]
   (swap! db (fn [state] (update-in state [:index] inc))))
 
@@ -91,8 +93,7 @@
 (defn update-client
   "Sends db state to all clients, which clients always accept and overwrite their local state."
   [{:keys [send-fn connected-uids]} term]
-  (timbre/info {:event :update-clients
-                :message "Sending db update to all clients."})
+  (timbre/info {:event :update-clients})
   (let [db @db
         uids @connected-uids]
     (when uids
@@ -100,13 +101,11 @@
         (timbre/debug {:uid uid
                        :db db
                        :event :update-client})
-        (send-fn uid [:srv/update (assoc db
-                                         :term term)])))))
+        (send-fn uid [:srv/update (assoc db :term term)])))))
 
 (defn push-client
   [{:keys [send-fn connected-uids]} _ _ _ new-state]
-  (timbre/info {:event :push-clients
-                :message "Pushing state to all clients."})
+  (timbre/info {:event :push-clients})
   (let [uids @connected-uids]
     (doseq [uid (:any uids)]
       (timbre/debug {:uid uid
@@ -114,6 +113,7 @@
                      :event :push-client})
       (send-fn uid [:srv/push new-state]))))
 
+;; FIXME Server is redundant with the namespace
 (defrecord ChskServer [ch-recv
                        send-fn
                        ajax-post-fn
@@ -142,8 +142,7 @@
     (if stop-fn
       (do
         (timbre/info {:component 'ChskServer
-                      :state :stopped
-                      :message "Stoppping WS server."})
+                      :state :stopped})
         (stop-fn)
         (assoc this
                :ch-recv nil
@@ -153,15 +152,16 @@
                :connected-uids nil))
       this)))
 
+;; FIXME Server is redundant with the namespace
 (defn new-chsk-server [] (map->ChskServer {}))
 
+;; FIXME Server is redundant with the namespace
 (defrecord HttpServer [port chsk-server stop-fn]
   component/Lifecycle
   (start [this]
     (if-not stop-fn
       (let [_ (timbre/info {:component 'HttpServer
-                             :state :started
-                             :message "Starting presentation server."})
+                             :state :started})
             chsk-handshake (:ajax-get-or-ws-handshake-fn chsk-server)
             ring-handler (defaults/wrap-defaults (ring-routes chsk-handshake)
                                                       defaults/site-defaults)
@@ -180,22 +180,24 @@
     (if stop-fn
       (do
         (timbre/info {:component 'HttpServer
-                       :state :stopped
-                       :message "Stopping HTTP server."})
+                       :state :stopped})
         (stop-fn))
       this)))
 
+
+;; FIXME Server is redundant with the namespace
 (defn new-http-server [port]
   (map->HttpServer {:port port}))
 
-;; FIXME You probably don't need a heartbeat
+(defrecord Chat [chsk-server ])
+
+;; FIXME Heartbeat could be an update/sync. Heartbeat is a metaphor, name based on mechanism.
 (defrecord Heartbeat [chsk-server interval stop-fn]
   component/Lifecycle
   (start [this]
     (if-not stop-fn
       (let [_ (timbre/info {:component 'HeartBeat
-                            :state :started
-                            :message "Starting heartbeat broadcasts."})
+                            :state :started})
             ch-ctrl (chan)]
 
         (go-loop [term 0]
@@ -215,8 +217,7 @@
     (if stop-fn
       (do
         (timbre/info {:component 'HeartBeat
-                      :state :stopped
-                      :message "Stopping heartbeats."})
+                      :state :stopped})
         (stop-fn))
       this)))
 
@@ -228,15 +229,13 @@
   component/Lifecycle
   (start [this]
     (timbre/info {:component 'Watcher
-                  :state :started
-                  :message "Adding watcher for db updates"})
+                  :state :started})
     (add-watch db :index (partial push-client chsk-server))
     (assoc this :active [:index]))
 
   (stop [this]
     (timbre/info {:component 'Watcher
-                  :state :stopped
-                  :message "Removing db watcher"})
+                  :state :stopped})
     (remove-watch db :index)
     (assoc this :active [])))
 
