@@ -104,21 +104,6 @@
   (let [{:keys [term max]} @db]
     (send-event :cli/next {:term term :timestamp (now)})))
 
-;; Input handling -- move this to its own namespace
-(def input-prev #{40 37})
-(def input-next #{38 39})
-
-(defn handle-keyboard
-  "Maps keyCode propery to correct handler."
-  [e]
-  (let [key-code (.-keyCode e)]
-    (cond
-      (input-prev key-code) (slide-prev)
-      (input-next key-code) (slide-next))))
-
-(defn listen-keyboard []
-  (events/listen js/window "keydown" handle-keyboard))
-
 (defn start! [] (start-router!))
 
 (defn get-db []
@@ -133,10 +118,25 @@
    [:div.log
     [get-db]]])
 
+;; Input handling -- move this to its own namespace
+(def keyboard-prev #{40 37})
+(def keyboard-next #{38 39})
+
+(defn keyboard-handle
+  "Maps keyCode propery to correct handler."
+  [e]
+  (let [key-code (.-keyCode e)]
+    (cond
+      (keyboard-prev key-code) (slide-prev)
+      (keyboard-next key-code) (slide-next))))
+
+(defn keyboard-listen []
+  (events/listen js/window "keydown" keyboard-handle))
+
 ;; Run these functions once on startup.
 (defonce _start-once
   (do
-    (listen-keyboard)
+    (keyboard-listen)
     (start!)))
 
 (r/render-component [layout]
