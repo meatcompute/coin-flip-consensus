@@ -14,6 +14,7 @@
   [ring-req]
   (hiccup/html
    [:head
+    [:title "Twitch Plays Coin Flip"]
     [:meta {:charset "UTF-8"}]
     [:meta {:name "viewport"
             :content "width=device-width, initial-scale=1"}]
