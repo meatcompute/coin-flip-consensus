@@ -39,12 +39,8 @@
     ))
 
 (defn update-db
-  [state {:keys [index max] :as new-state}]
-  (let [index (or index 0)
-        max (or max 1)]
-    (assoc state
-           :index index
-           :max max)))
+  [state {:keys [term] :as new-state}]
+  (assoc state :term (or term 0)))
 
 ;;;; Sente event handlers
 (defmulti -event-msg-handler :id)
@@ -68,7 +64,7 @@
   [{:as ev-msg :keys [event ?data]}]
   (let [[id body] ?data]
     (case id
-      :srv/sync (swap! db update-db body)
+      :srv/update (swap! db update-db body)
       :srv/push (swap! db update-db body))))
 
 (defmethod -event-msg-handler
@@ -98,17 +94,15 @@
 (defn slide-prev
   "Send next event to server. Either commit change locally on correct response, or sync w/ heartbeat."
   []
-  (let [{:keys [index]} @db]
-    (if-not (zero? index)
-      (send-event :cli/prev {:index index :time (now)}))))
+  (let [{:keys [term]} @db]
+    (send-event :cli/prev {:term term :timestamp (now)})))
 
 ;; TODO Make these events for blue or orange
 (defn slide-next
   "Send next event to server. Either commit change locally on correct response, or sync w/ heartbeat."
   []
-  (let [{:keys [index max]} @db]
-    (if-not (>= index max)
-      (send-event :cli/next {:index index :time (now)}))))
+  (let [{:keys [term max]} @db]
+    (send-event :cli/next {:term term :timestamp (now)})))
 
 ;; Input handling -- move this to its own namespace
 (def input-prev #{40 37})
@@ -127,19 +121,17 @@
 
 (defn start! [] (start-router!))
 
-(defn get-slide []
-  (let [prefix "slides/web-dev-dist-sys"
-        index (:index @db)
-        extension ".png"]
-    (str prefix index extension)))
+(defn get-db []
+  (let [db @db]
+    [:p (str db)]))
 
 (defn layout []
   [:div.app-container
    [:div.click-container
     [:div.click-left {:on-click slide-prev}]
     [:div.click-right {:on-click slide-next}]]
-   [:div.slide-container
-    [:img#slide.noselect {:src (get-slide)}]]])
+   [:div.log
+    [get-db]]])
 
 ;; Run these functions once on startup.
 (defonce _start-once

@@ -22,7 +22,6 @@
             :type "text/css"}]]
    [:body
     [:h1 "Twitch Plays Coin Flip"]
-    [:p "Hey there this is a landing page!"]
     [:div#app]
     [:script {:src "js/compiled/coin_flip_consensus.js"}]]))
 

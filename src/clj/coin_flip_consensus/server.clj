@@ -37,11 +37,11 @@
 
 ;; FIXME Orange
 (defmethod -event-msg-handler :cli/prev [_]
-  (swap! db (fn [state] (update-in state [:index] dec))))
+  (swap! db (fn [state] (update-in state [:term] dec))))
 
 ;; FIXME blue
 (defmethod -event-msg-handler :cli/next [_]
-  (swap! db (fn [state] (update-in state [:index] inc))))
+  (swap! db (fn [state] (update-in state [:term] inc))))
 
 (defmethod -event-msg-handler :chsk/ws-ping [_] (comment "Noop"))
 
@@ -160,13 +160,13 @@
   (start [this]
     (timbre/info {:component 'Watcher
                   :state :started})
-    (add-watch db :index (partial push-client chsk-server))
-    (assoc this :active [:index]))
+    (add-watch db :term (partial push-client chsk-server))
+    (assoc this :active [:term]))
 
   (stop [this]
     (timbre/info {:component 'Watcher
                   :state :stopped})
-    (remove-watch db :index)
+    (remove-watch db :term)
     (assoc this :active [])))
 
 (defn new-watcher []
