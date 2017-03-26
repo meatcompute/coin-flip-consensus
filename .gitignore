@@ -12,6 +12,7 @@ pom.xml
 .lein-plugins/
 .repl
 .nrepl-port
+.cljs_rhino_repl
 .DS_Store
 *.log*
 .#*
