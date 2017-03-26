@@ -1,7 +1,6 @@
 (ns coin-flip-consensus.server
   "A web and backend server for a conensus-driven multiplayer coin flip game."
-  (:require
-            ; [coin-flip-consensus.event :as event]
+  (:require ; [coin-flip-consensus.event :as event]
             [com.stuartsierra.component :as component]
             [clojure.core.async
              :as async
@@ -45,7 +44,7 @@
             :type "text/css"}]]
    [:body
     [:div#app]
-    [:h1 "Multiplayer Majority Coin Flip Consensus"]
+    [:h1 "Twitch Plays Coin Flip"]
     [:p "Hey there this is a landing page!"]
     [:script {:src "js/compiled/coin_flip_consensus.js"}]]))
 
@@ -134,7 +133,7 @@
                                                     {:packer :edn
                                                      :user-id-fn user-id-fn
                                                      :handshake-data-fn (fn [_] @db)})
-          router (sente/start-server-chsk-router! (:ch-recv server) event/event-msg-handler)]
+          router (sente/start-server-chsk-router! (:ch-recv server) event-msg-handler)]
       (assoc this
              :ch-recv (:ch-recv server)
              :send-fn (:send-fn server)
