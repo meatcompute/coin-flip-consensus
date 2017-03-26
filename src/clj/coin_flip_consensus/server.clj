@@ -280,11 +280,4 @@
    #'system-state
    component/stop-system))
 
-(defn cider-stop! []
-  (stop))
-
-(defn cider-start! []
-  (init)
-  (start))
-
 (defn -main "For `lein run`, etc." [] (component/start (new-system {:port 10002})))
