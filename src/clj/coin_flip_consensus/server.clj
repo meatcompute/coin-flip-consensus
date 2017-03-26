@@ -88,22 +88,22 @@
         uid     (:uid     session)]
     (timbre/debugf "Unhandled event: %s" event)
     (when ?reply-fn
-      (?reply-fn {:umatched-event-as-echoed-from-from-server event}))))
+      (?reply-fn {:umatched-event-as-echoed-from-server event}))))
 
-(defn sync-client
+(defn update-client
+  "Sends db state to all clients, which clients always accept and overwrite their local state."
   [{:keys [send-fn connected-uids]} term]
-  (timbre/info {:event :sync-clients
-                :message "Sending sync to all clients."})
+  (timbre/info {:event :update-clients
+                :message "Sending db update to all clients."})
   (let [db @db
         uids @connected-uids]
     (when uids
       (doseq [uid (:any uids)]
         (timbre/debug {:uid uid
                        :db db
-                       :event :sync-client
-                       :message (str "Syncing: " db " to UID: " uid)})
-        (send-fn uid [:srv/sync (assoc db
-                                       :term term)])))))
+                       :event :update-client})
+        (send-fn uid [:srv/update (assoc db
+                                         :term term)])))))
 
 (defn push-client
   [{:keys [send-fn connected-uids]} _ _ _ new-state]
@@ -113,8 +113,7 @@
     (doseq [uid (:any uids)]
       (timbre/debug {:uid uid
                      :new-state new-state
-                     :event :push-client
-                     :message (str "Pushing: " new-state " to UID: " uid)})
+                     :event :push-client})
       (send-fn uid [:srv/push new-state]))))
 
 (defrecord ChskServer [ch-recv
@@ -126,8 +125,7 @@
   component/Lifecycle
   (start [this]
     (timbre/info {:component 'ChskServer
-                  :state :started
-                  :message "Starting channel-socket server."})
+                  :state :started})
 
     (let [server (sente/make-channel-socket-server! sente-web-server-adapter
                                                     {:packer :edn
@@ -192,6 +190,7 @@
 (defn new-http-server [port]
   (map->HttpServer {:port port}))
 
+;; FIXME You probably don't need a heartbeat
 (defrecord Heartbeat [chsk-server interval stop-fn]
   component/Lifecycle
   (start [this]
@@ -224,8 +223,9 @@
       this)))
 
 (defn new-heartbeat []
-  (map->Heartbeat {:interval 1000}))
+  (map->Heartbeat {:interval 5000}))
 
+;; TODO Make idempotent
 (defrecord Watcher [chsk-server active]
   component/Lifecycle
   (start [this]
