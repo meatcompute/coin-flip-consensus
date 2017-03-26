@@ -58,10 +58,8 @@
    (route/not-found "<h1>Route not found, 404 :C</h1>")))
 
 (def db (atom {:clients []
-               :terms {:log []}}))
-
-(defn count-terms [db]
-  (count (:terms db)))
+               :log []
+               :term 0}))
 
 ;; Event handlers
 (defmulti -event-msg-handler :id)
