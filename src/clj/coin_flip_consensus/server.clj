@@ -206,7 +206,7 @@
                 stop? (= port ch-ctrl)]
 
             (when-not stop?
-              (sync-client chsk-server term)
+              (update-client chsk-server term)
 
               (recur (inc term)))))
 
