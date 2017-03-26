@@ -43,9 +43,9 @@
             :rel "stylesheet"
             :type "text/css"}]]
    [:body
-    [:div#app]
     [:h1 "Twitch Plays Coin Flip"]
     [:p "Hey there this is a landing page!"]
+    [:div#app]
     [:script {:src "js/compiled/coin_flip_consensus.js"}]]))
 
 (defn ring-routes
