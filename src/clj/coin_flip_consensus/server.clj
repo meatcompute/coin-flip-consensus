@@ -43,6 +43,8 @@
 (defmethod -event-msg-handler :cli/next [_]
   (swap! db (fn [state] (update-in state [:term] inc))))
 
+;; FIXME Update client state when it gets pinged? This should
+;;       help address missed updates.
 (defmethod -event-msg-handler :chsk/ws-ping [_] (comment "Noop"))
 
 ; Default/fallback case (no other matching handler)

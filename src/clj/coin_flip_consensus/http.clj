@@ -35,7 +35,6 @@
    (route/resources "/") ; Static files, notably public/main.js (our cljs target)
    (route/not-found "<h1>Route not found, 404 :C</h1>")))
 
-;; FIXME Server is redundant with the namespace
 (defrecord Http [port chsk-server stop-fn]
   component/Lifecycle
   (start [this]
