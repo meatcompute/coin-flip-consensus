@@ -68,6 +68,7 @@
         (send-fn uid [:srv/update (assoc db :term term)])))))
 
 (defn push-client
+  "When the server updates its db, it sends out this db to all clients."
   [{:keys [send-fn connected-uids]} _ _ _ new-state]
   (timbre/info {:event :push-clients})
   (let [uids @connected-uids]
