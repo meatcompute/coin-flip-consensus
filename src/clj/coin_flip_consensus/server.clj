@@ -2,72 +2,22 @@
   "A web and backend server for a conensus-driven multiplayer coin flip game."
   (:require ; [coin-flip-consensus.event :as event]
    [coin-flip-consensus.http :as http]
+   [coin-flip-consensus.channel :as channel]
    [com.stuartsierra.component :as component]
    [clojure.core.async
     :as async
     :refer [<! <!! >! >!! put! chan go go-loop close!]]
    [taoensso.timbre :as timbre]
-   [taoensso.timbre.appenders.3rd-party.rotor :as rotor]
-   [taoensso.sente.server-adapters.http-kit :refer [sente-web-server-adapter]]
-   [taoensso.sente :as sente]))
+   [taoensso.timbre.appenders.3rd-party.rotor :as rotor]))
 
 ;; Set the global logging behavior for timbre
 (timbre/set-config! {:level :info
                      :appenders {:rotor (rotor/rotor-appender {:max-size (* 1024 1024)
                                                                :backlog 10
                                                                :path "./coin-flip-consensus.log"})}})
-(defn user-id-fn
-  "Each client provides a UUID on connect. We get it from the request and call it the uid on our end."
-  [ring-req]
-  (:client-id ring-req))
 
-(def db (atom {:clients []
-               :log []
-               :term 0}))
-
-;; Event handlers
-(defmulti -event-msg-handler :id)
-
-(defn event-msg-handler
-  "Wraps `-event-msg-handler` with logging."
-  [{:as ev-msg :keys [event ring-req client-id]}]
-  (let [session (:session ring-req)]
-    (timbre/info {:uid client-id :event event})
-    (-event-msg-handler ev-msg)))
-
-;; FIXME Orange
-(defmethod -event-msg-handler :cli/prev [_]
-  (swap! db (fn [state] (update-in state [:term] dec))))
-
-;; FIXME blue
-(defmethod -event-msg-handler :cli/next [_]
-  (swap! db (fn [state] (update-in state [:term] inc))))
-
-;; FIXME Update client state when it gets pinged? This should
-;;       help address missed updates.
-(defmethod -event-msg-handler :chsk/ws-ping [_] (comment "Noop"))
-
-; Default/fallback case (no other matching handler)
-(defmethod -event-msg-handler :default
-  [{:as ev-msg :keys [event id ?data ring-req ?reply-fn send-fn]}]
-  (let [session (:session ring-req)
-        uid     (:uid     session)]
-    (timbre/debugf "Unhandled event: %s" event)
-    (when ?reply-fn
-      (?reply-fn {:umatched-event-as-echoed-from-server event}))))
-
-(defn update-client
-  "Sends db state to all clients, which clients always accept and overwrite their local state."
-  [{:keys [send-fn connected-uids]} term]
-  (timbre/info {:event :update-clients})
-  (let [db @db
-        uids @connected-uids]
-    (when uids
-      (doseq [uid (:any uids)]
-        (timbre/debug {:uid uid
-                       :db db
-                       :event :update-client})
-        (send-fn uid [:srv/update (assoc db :term term)])))))
+(defn client-spec [] java.util.UUID)
+(defn vote-spec [] [java.util.UUID clojure.lang.Keyword])
 
 (defn push-client
   "When the server updates its db, it sends out this db to all clients."
@@ -80,61 +30,45 @@
                      :event :push-client})
       (send-fn uid [:srv/push new-state]))))
 
-;; FIXME Server is redundant with the namespace
-(defrecord ChskServer [ch-recv
-                       send-fn
-                       ajax-post-fn
-                       ajax-get-or-ws-handshake-fn
-                       connected-uids
-                       stop-fn]
+(defrecord Db [clients log term]
   component/Lifecycle
   (start [this]
-    (timbre/info {:component 'ChskServer
-                  :state :started})
-
-    (let [server (sente/make-channel-socket-server! sente-web-server-adapter
-                                                    {:packer :edn
-                                                     :user-id-fn user-id-fn
-                                                     :handshake-data-fn (fn [_] @db)})
-          router (sente/start-server-chsk-router! (:ch-recv server) event-msg-handler)]
-      (assoc this
-             :ch-recv (:ch-recv server)
-             :send-fn (:send-fn server)
-             :ajax-post-fn (:ajax-post-fn server)
-             :ajax-get-or-ws-handshake-fn (:ajax-get-or-ws-handshake-fn server)
-             :connected-uids (:connected-uids server)
-             :stop-fn router)))
+    (if term
+      this
+      (do
+        (timbre/info {:component 'Db :state :started})
+        (assoc this
+               :clients (atom [])
+               :log (atom [])
+               :term (atom 0)
+               :votes (atom [])))))
 
   (stop [this]
-    (if stop-fn
+    (if term
       (do
-        (timbre/info {:component 'ChskServer
-                      :state :stopped})
-        (stop-fn)
+        (timbre/info {:component 'Db :state :stopped})
         (assoc this
-               :ch-recv nil
-               :send-fn nil
-               :ajax-post-fn nil
-               :ajax-get-or-ws-handshake-fn nil
-               :connected-uids nil))
+               :clients nil
+               :log nil
+               :term nil))
       this)))
 
-;; FIXME Server is redundant with the namespace
-(defn new-chsk-server [] (map->ChskServer {}))
+(defn new-db []
+  (map->Db {}))
 
-;; TODO Make idempotent
-(defrecord Watcher [chsk-server active]
+;; TODO Test if adding and removing watchers is idempotent
+(defrecord Watcher [db channel active]
   component/Lifecycle
   (start [this]
     (timbre/info {:component 'Watcher
                   :state :started})
-    (add-watch db :term (partial push-client chsk-server))
+    (add-watch (:term db) :term (partial push-client channel))
     (assoc this :active [:term]))
 
   (stop [this]
     (timbre/info {:component 'Watcher
                   :state :stopped})
-    (remove-watch db :term)
+    (remove-watch (:term db) :term)
     (assoc this :active [])))
 
 (defn new-watcher []
@@ -143,15 +77,16 @@
 (defn new-system
   [config]
   (let [{:keys [port]} config]
-    (component/start-system
-     {:chsk-server (new-chsk-server)
-      :http (component/using
-             (http/new port)
-             [:chsk-server])
-
-      :watcher (component/using
-                (new-watcher)
-                [:chsk-server])})))
+    (component/start-system {:db (new-db)
+                             :channel (component/using
+                                       (channel/new)
+                                       [:db])
+                             :http (component/using
+                                    (http/new port)
+                                    [:channel])
+                             :watcher (component/using
+                                       (new-watcher)
+                                       [:channel :db])})))
 
 (def system-state nil)
 

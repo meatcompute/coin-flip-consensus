@@ -9,8 +9,7 @@
    [taoensso.timbre :as timbre]))
 
 (defn landing-pg-handler
-  "Template for the index web page.
-  FIXME: move this into its own namespace"
+  "Template for the index web page."
   [ring-req]
   (hiccup/html
    [:head
@@ -22,7 +21,6 @@
             :rel "stylesheet"
             :type "text/css"}]]
    [:body
-    [:h1 "Twitch Plays Coin Flip"]
     [:div#app]
     [:script {:src "js/compiled/coin_flip_consensus.js"}]]))
 

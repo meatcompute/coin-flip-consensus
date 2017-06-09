@@ -15,9 +15,15 @@
 (enable-console-print!)
 (timbre/debugf "Client is running at %s" (now))
 
+;; TODO Consider adding client/server latency delta tracking to do client-side diffs on the server's term window
 ;; Database, init with some scratch vals.
-(defonce db (atom {:peers []
-                   :log []}))
+(defonce db (atom {:clients (atom [])
+                   :log (atom [])
+                   :term (atom 0)
+                   :votes (atom [])}))
+
+
+
 
 ;; Channel socket setup
 (defn make-chsk-client

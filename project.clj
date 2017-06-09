@@ -1,7 +1,5 @@
 (defproject coin-flip-consensus "0.1.0"
   :description "A game to exercise a simple consensus protocol"
-
-  ;; FIXME specify an updated min version
   :min-lein-version "2.6.1"
 
   ;; FIXME Run lein ancient
@@ -9,6 +7,7 @@
                  [org.clojure/clojurescript "1.7.228"]
                  [org.clojure/core.async "0.2.374"
                   :exclusions [org.clojure/tools.reader]]
+                 [org.clojure/tools.namespace "0.2.11"]
                  [com.taoensso/sente "1.8.1"]
                  [com.taoensso/timbre "4.3.1"]
                  [com.stuartsierra/component "0.3.1"]
@@ -17,7 +16,8 @@
                  [ring/ring-defaults "0.2.0"]
                  [compojure "1.5.0"]
                  [hiccup "1.0.5"]
-                 [reagent "0.5.1"]]
+                 [reagent "0.5.1"]
+                 [mount "0.1.11"]]
 
   ;; FIXME Run lein ancient
   :plugins [[lein-figwheel "0.5.2"]
